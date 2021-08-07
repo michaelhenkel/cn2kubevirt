@@ -1,0 +1,11 @@
+name: cluster1
+namespace: cluster1
+controller: 1
+worker: 1
+subnet: 192.168.88.0/24
+keypath: ~/.ssh/id_rsa.pub
+memory: 16G
+cpu: "6"
+image: "svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/containerdisk-ubuntu:20.04.1"
+suffix: local
+kubeconfigdir: /tmp/cluster1
