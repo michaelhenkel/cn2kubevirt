@@ -2,11 +2,13 @@ package inventory
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"regexp"
 	"strings"
 
 	"github.com/michaelhenkel/cn2kubevirt/cluster"
+	"github.com/michaelhenkel/cn2kubevirt/deployer"
 	"github.com/michaelhenkel/cn2kubevirt/roles"
 	"gopkg.in/yaml.v3"
 	"k8s.io/klog"
@@ -103,7 +105,7 @@ func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, ser
 				"download_container":                  "false",
 				"etcd_deployment_type":                "host",
 				"host_key_checking":                   "false",
-				"supplementary_addresses_in_ssl_keys": serviceIP,
+				"supplementary_addresses_in_ssl_keys": "[" + serviceIP + "]",
 			},
 		},
 		KubeMaster: KubeMaster{
@@ -128,6 +130,8 @@ func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, ser
 	}
 	inventoryString := strings.Replace(string(inventoryByte), "{}", "", -1)
 	inventoryString = regexp.MustCompile(`"(true|false)"`).ReplaceAllString(inventoryString, `$1`)
+	inventoryString = strings.Replace(inventoryString, "'[", "[", -1)
+	inventoryString = strings.Replace(inventoryString, "]'", "]", -1)
 	if _, err := os.Stat(cl.Kubeconfigdir); os.IsNotExist(err) {
 		if err := os.Mkdir(cl.Kubeconfigdir, 0755); err != nil {
 			return err
@@ -139,5 +143,27 @@ func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, ser
 	}
 	klog.Infof("created inventory file %s/inventory.yaml", cl.Kubeconfigdir)
 
+	adminConfByte, err := os.ReadFile(cl.Kubeconfigdir + "/admin.conf")
+	if err != nil {
+		return err
+	}
+	r := regexp.MustCompile(`server: https://(.*):6443`)
+	currentIP := r.FindStringSubmatch(string(adminConfByte))
+	adminConfString := strings.Replace(string(string(adminConfByte)), currentIP[1], serviceIP, -1)
+	if err := os.WriteFile(cl.Kubeconfigdir+"/admin.conf", []byte(adminConfString), 0600); err != nil {
+		return err
+	}
+	klog.Infof("created deployer file %s/admin.conf", cl.Kubeconfigdir)
+	ipnet, _, err := net.ParseCIDR(cl.Subnet)
+	if err != nil {
+		return err
+	}
+	ip := ipnet.To4()
+	ip[3]++
+	deployer := deployer.NewDeployer(cl.Controller, ip.String(), cl.Podv4subnet, cl.Podv6subnet, cl.Servicev4subnet, cl.Servicev6subnet, cl.Asn)
+	if err := os.WriteFile(cl.Kubeconfigdir+"/deployer.yaml", []byte(deployer), 0600); err != nil {
+		return err
+	}
+	klog.Infof("created deployer file %s/deployer.yaml", cl.Kubeconfigdir)
 	return nil
 }
