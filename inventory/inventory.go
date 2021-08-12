@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"fmt"
+
 	"net"
 	"os"
 	"regexp"
@@ -10,8 +11,9 @@ import (
 	"github.com/michaelhenkel/cn2kubevirt/cluster"
 	"github.com/michaelhenkel/cn2kubevirt/deployer"
 	"github.com/michaelhenkel/cn2kubevirt/roles"
+	log "github.com/sirupsen/logrus"
+
 	"gopkg.in/yaml.v3"
-	"k8s.io/klog"
 )
 
 type Host struct {
@@ -141,7 +143,7 @@ func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, ser
 	if err := os.WriteFile(cl.Kubeconfigdir+"/inventory.yaml", []byte(inventoryString), 0600); err != nil {
 		return err
 	}
-	klog.Infof("created inventory file %s/inventory.yaml", cl.Kubeconfigdir)
+	log.Info("created inventory file %s/inventory.yaml", cl.Kubeconfigdir)
 
 	adminConfByte, err := os.ReadFile(cl.Kubeconfigdir + "/admin.conf")
 	if err != nil {
@@ -153,7 +155,7 @@ func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, ser
 	if err := os.WriteFile(cl.Kubeconfigdir+"/admin.conf", []byte(adminConfString), 0600); err != nil {
 		return err
 	}
-	klog.Infof("created deployer file %s/admin.conf", cl.Kubeconfigdir)
+	log.Infof("created deployer file %s/admin.conf", cl.Kubeconfigdir)
 	ipnet, _, err := net.ParseCIDR(cl.Subnet)
 	if err != nil {
 		return err
@@ -164,6 +166,6 @@ func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, ser
 	if err := os.WriteFile(cl.Kubeconfigdir+"/deployer.yaml", []byte(deployer), 0600); err != nil {
 		return err
 	}
-	klog.Infof("created deployer file %s/deployer.yaml", cl.Kubeconfigdir)
+	log.Infof("created deployer file %s/deployer.yaml", cl.Kubeconfigdir)
 	return nil
 }

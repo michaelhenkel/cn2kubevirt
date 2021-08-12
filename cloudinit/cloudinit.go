@@ -55,7 +55,7 @@ type instanceUser struct {
 	SSHAuthorizedKeys []string `yaml:"ssh-authorized-keys"`
 }
 
-func CreateCloudInit(hostname, key string) (string, error) {
+func CreateCloudInit(hostname, key, gateway string, routes []string) (string, error) {
 	ci := cloudInit{
 		Hostname:       hostname,
 		ManageEtcHosts: true,
@@ -82,18 +82,30 @@ root:contrail`,
 			Content: `[Resolve]
 DNS=172.29.131.60`,
 			Path: "/etc/systemd/resolved.conf",
-		}, {
-			Content: `network:
-  ethernets:
-    enp2s0:
-      dhcp4: true`,
-			Path: "/etc/netplan/intf.yaml",
 		}},
 		RunCMD: []string{
 			"systemctl restart systemd-resolved.service",
 			"netplan apply",
 		},
 	}
+	content := `network:
+  ethernets:
+    enp2s0:
+      dhcp4: true`
+	if len(routes) > 0 {
+		for _, route := range routes {
+			content = content + "\n      routes:"
+			content = content + fmt.Sprintf("\n      - to: %s", route)
+			content = content + fmt.Sprintf("\n        via: %s", gateway)
+		}
+	}
+
+	wf := writeFiles{
+		Content: content,
+		Path:    "/etc/netplan/intf.yaml",
+	}
+
+	ci.WriteFiles = append(ci.WriteFiles, wf)
 
 	ciByte, err := yaml.Marshal(&ci)
 	if err != nil {

@@ -17,4 +17,5 @@ type Cluster struct {
 	Servicev4subnet string
 	Servicev6subnet string
 	Asn             int
+	Routes          []string
 }

@@ -6,12 +6,13 @@ go 1.16
 require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.0
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.1
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 	k8s.io/api v0.20.2
 	k8s.io/apimachinery v0.20.2
 	k8s.io/client-go v12.0.0+incompatible
-	k8s.io/klog v1.0.0
+	//k8s.io/klog v1.0.0
 	kubevirt.io/client-go v0.41.0-rc.0.0.20210602203928-edb77f316136
 	ssd-git.juniper.net/contrail/cn2/contrail v0.0.0-00010101000000-000000000000
 )

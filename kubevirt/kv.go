@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 
 	"github.com/michaelhenkel/cn2kubevirt/cloudinit"
 	"github.com/michaelhenkel/cn2kubevirt/cluster"
@@ -12,11 +13,11 @@ import (
 	"github.com/michaelhenkel/cn2kubevirt/k8s"
 	"github.com/michaelhenkel/cn2kubevirt/roles"
 	hd "github.com/mitchellh/go-homedir"
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
 	kubevirtV1 "kubevirt.io/client-go/api/v1"
 	"kubevirt.io/client-go/kubecli"
 )
@@ -76,14 +77,14 @@ func (k *KubevirtCluster) Watch(client *k8s.Client, cl *cluster.Cluster) (map[st
 			for event := range watch.ResultChan() {
 				p, ok := event.Object.(*v1.Pod)
 				if !ok {
-					klog.Fatal("unexpected type")
+					log.Fatal("unexpected type")
 				}
 				/*
-					klog.Infof("Type: %v\n", event.Type)
-					klog.Infof("Status: %v\n", p.Status.ContainerStatuses)
-					klog.Infof("Phase: %v\n", p.Status.Phase)
-					klog.Infof("podname %s\n", p.Name)
-					klog.Infof("ready %d, instances %d", readyCount, len(k.VirtualMachineInstances))
+					log.Infof("Type: %v\n", event.Type)
+					log.Infof("Status: %v\n", p.Status.ContainerStatuses)
+					log.Infof("Phase: %v\n", p.Status.Phase)
+					log.Infof("podname %s\n", p.Name)
+					log.Infof("ready %d, instances %d", readyCount, len(k.VirtualMachineInstances))
 				*/
 				if p.Status.Phase == "Running" {
 					readyCount++
@@ -131,15 +132,21 @@ func NewKubevirtCluster(cl *cluster.Cluster) (*KubevirtCluster, error) {
 	if err != nil {
 		return nil, err
 	}
+	ipnet, _, err := net.ParseCIDR(cl.Subnet)
+	if err != nil {
+		return nil, err
+	}
+	ip := ipnet.To4()
+	ip[3]++
 	for c := 0; c < cl.Controller; c++ {
-		ci, err := cloudinit.CreateCloudInit(fmt.Sprintf("%s-%d", roles.Controller, c), string(pubKey))
+		ci, err := cloudinit.CreateCloudInit(fmt.Sprintf("%s-%d", roles.Controller, c), string(pubKey), ip.String(), cl.Routes)
 		if err != nil {
 			return nil, err
 		}
 		kvCluster.VirtualMachineInstances = append(kvCluster.VirtualMachineInstances, defineVMI(cl, ci, c, roles.Controller))
 	}
 	for c := 0; c < cl.Worker; c++ {
-		ci, err := cloudinit.CreateCloudInit(fmt.Sprintf("%s-%d", roles.Worker, c), string(pubKey))
+		ci, err := cloudinit.CreateCloudInit(fmt.Sprintf("%s-%d", roles.Worker, c), string(pubKey), ip.String(), cl.Routes)
 		if err != nil {
 			return nil, err
 		}

@@ -11,10 +11,10 @@ import (
 	"github.com/michaelhenkel/cn2kubevirt/k8s"
 	"github.com/michaelhenkel/cn2kubevirt/kubevirt"
 	"github.com/michaelhenkel/cn2kubevirt/roles"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/klog"
 
 	nadv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,13 +32,13 @@ var createCmd = &cobra.Command{
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		if file != "" {
-			klog.Info("creating cluster")
+			log.Info("creating cluster")
 			if err := createCluster(); err != nil {
-				klog.Error(err)
+				log.Error(err)
 				os.Exit(0)
 			}
 		} else {
-			klog.Errorf("missing file")
+			log.Errorf("missing file")
 			os.Exit(0)
 		}
 	},
@@ -61,7 +61,8 @@ func createCluster() error {
 	if errors.IsNotFound(err) {
 		namespace := &v1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: cl.Namespace,
+				Name:   cl.Namespace,
+				Labels: map[string]string{"ns": "cluster"},
 			},
 		}
 		_, err = client.K8S.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
@@ -80,6 +81,7 @@ func createCluster() error {
 				Annotations: map[string]string{
 					"juniper.net/networks": fmt.Sprintf(`{"ipamV4Subnet": "%s","fabricSNAT": true}`, cl.Subnet),
 				},
+				Labels: map[string]string{"vn": cl.Name},
 			},
 			Spec: nadv1.NetworkAttachmentDefinitionSpec{
 				Config: `{"cniVersion": "0.3.1","name": "contrail-k8s-cni",	"type": "contrail-k8s-cni"}`,
@@ -89,7 +91,40 @@ func createCluster() error {
 		if err != nil {
 			return err
 		}
+		nadWatch, err := client.Nad.K8sCniCncfIoV1().NetworkAttachmentDefinitions(cl.Namespace).Watch(context.Background(), metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("vn=%s", cl.Name),
+		})
+		if err != nil {
+			return err
+		}
+		var done = make(chan bool)
+		go func() {
+			for event := range nadWatch.ResultChan() {
+				s, ok := event.Object.(*nadv1.NetworkAttachmentDefinition)
+				if !ok {
+					log.Fatal("unexpected type")
+				}
+				status, ok := s.ObjectMeta.Annotations["juniper.net/networks-status"]
+				if ok && status == fmt.Sprintf("success creating VirtualNetwork %s v4Subnet: %s", cl.Name, cl.Subnet) {
+					done <- true
+				}
+			}
+		}()
+		<-done
+
+		if err != nil {
+			return err
+		}
 	} else if err != nil {
+		return err
+	}
+
+	vn, err := client.Contrail.CoreV1alpha1().VirtualNetworks(cl.Namespace).Get(context.Background(), cl.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	vn.Labels["vn"] = cl.Name
+	if _, err := client.Contrail.CoreV1alpha1().VirtualNetworks(cl.Namespace).Update(context.Background(), vn, metav1.UpdateOptions{}); err != nil {
 		return err
 	}
 
@@ -156,7 +191,7 @@ func createCluster() error {
 			for event := range watch.ResultChan() {
 				s, ok := event.Object.(*v1.Service)
 				if !ok {
-					klog.Fatal("unexpected type")
+					log.Fatal("unexpected type")
 				}
 				if s.Spec.ClusterIP != "" {
 					serviceIP = s.Spec.ClusterIP
