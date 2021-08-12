@@ -8,12 +8,14 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 	"kubevirt.io/client-go/kubecli"
+	contrailClient "ssd-git.juniper.net/contrail/cn2/contrail/pkg/client/clientset_generated/clientset"
 )
 
 type Client struct {
 	K8S      *kubernetes.Clientset
 	Kubevirt kubecli.KubevirtClient
 	Nad      *nadClientset.Clientset
+	Contrail contrailClient.Clientset
 }
 
 func NewClient() (*Client, error) {

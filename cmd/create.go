@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -56,21 +57,21 @@ func createCluster() error {
 	if err != nil {
 		return err
 	}
-	_, err = client.K8S.CoreV1().Namespaces().Get(cl.Namespace, metav1.GetOptions{})
+	_, err = client.K8S.CoreV1().Namespaces().Get(context.Background(), cl.Namespace, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		namespace := &v1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: cl.Namespace,
 			},
 		}
-		_, err = client.K8S.CoreV1().Namespaces().Create(namespace)
+		_, err = client.K8S.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
 	} else if err != nil {
 		return err
 	}
-	_, err = client.Nad.K8sCniCncfIoV1().NetworkAttachmentDefinitions(cl.Namespace).Get(cl.Name, metav1.GetOptions{})
+	_, err = client.Nad.K8sCniCncfIoV1().NetworkAttachmentDefinitions(cl.Namespace).Get(context.Background(), cl.Name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		nad := &nadv1.NetworkAttachmentDefinition{
 			ObjectMeta: metav1.ObjectMeta{
@@ -84,7 +85,7 @@ func createCluster() error {
 				Config: `{"cniVersion": "0.3.1","name": "contrail-k8s-cni",	"type": "contrail-k8s-cni"}`,
 			},
 		}
-		_, err = client.Nad.K8sCniCncfIoV1().NetworkAttachmentDefinitions(cl.Namespace).Create(nad)
+		_, err = client.Nad.K8sCniCncfIoV1().NetworkAttachmentDefinitions(cl.Namespace).Create(context.Background(), nad, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -105,7 +106,7 @@ func createCluster() error {
 	}
 	var serviceIP string
 	watch := false
-	svc, err := client.K8S.CoreV1().Services(cl.Namespace).Get(cl.Name, metav1.GetOptions{})
+	svc, err := client.K8S.CoreV1().Services(cl.Namespace).Get(context.Background(), cl.Name, metav1.GetOptions{})
 	if err == nil {
 		if svc.Spec.ClusterIP != "" {
 			serviceIP = svc.Spec.ClusterIP
@@ -134,7 +135,7 @@ func createCluster() error {
 				},
 			},
 		}
-		if _, err := client.K8S.CoreV1().Services(cl.Namespace).Create(service); err != nil {
+		if _, err := client.K8S.CoreV1().Services(cl.Namespace).Create(context.Background(), service, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 		watch = true
@@ -143,7 +144,7 @@ func createCluster() error {
 		return err
 	}
 	if watch {
-		watch, err := client.K8S.CoreV1().Services(cl.Namespace).Watch(metav1.ListOptions{
+		watch, err := client.K8S.CoreV1().Services(cl.Namespace).Watch(context.Background(), metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("cluster=%s", cl.Name),
 		})
 		if err != nil {
