@@ -1,6 +1,7 @@
 package kubevirt
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -51,7 +52,7 @@ func (k *KubevirtCluster) Create(client kubecli.KubevirtClient) error {
 
 func (k *KubevirtCluster) Watch(client *k8s.Client, cl *cluster.Cluster) (map[string]inventory.InstanceIPRole, error) {
 	readyCount := 0
-	podList, err := client.K8S.CoreV1().Pods(cl.Namespace).List(metav1.ListOptions{
+	podList, err := client.K8S.CoreV1().Pods(cl.Namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("cluster=%s", cl.Name),
 	})
 	if err != nil {
@@ -64,7 +65,7 @@ func (k *KubevirtCluster) Watch(client *k8s.Client, cl *cluster.Cluster) (map[st
 	}
 	if readyCount != len(k.VirtualMachineInstances) {
 		readyCount = 0
-		watch, err := client.K8S.CoreV1().Pods(cl.Namespace).Watch(metav1.ListOptions{
+		watch, err := client.K8S.CoreV1().Pods(cl.Namespace).Watch(context.Background(), metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("cluster=%s", cl.Name),
 		})
 		if err != nil {
@@ -95,7 +96,7 @@ func (k *KubevirtCluster) Watch(client *k8s.Client, cl *cluster.Cluster) (map[st
 		}()
 		<-done
 	}
-	newPodList, err := client.K8S.CoreV1().Pods(cl.Namespace).List(metav1.ListOptions{
+	newPodList, err := client.K8S.CoreV1().Pods(cl.Namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("cluster=%s", cl.Name),
 	})
 	if err != nil {
