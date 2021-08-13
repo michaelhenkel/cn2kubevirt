@@ -1,0 +1,19 @@
+name: cluster2
+namespace: cluster2
+controller: 1
+worker: 1
+subnet: 10.0.1.0/24
+keypath: ~/.ssh/id_rsa.pub
+memory: 20G
+cpu: "6"
+image: "svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/containerdisk-ubuntu:20.04.1"
+suffix: local
+kubeconfigdir: /tmp/cluster2
+podv4subnet: 10.235.64.0/18
+podv6subnet: fd85:ee78:d8a6:8607::3:0/112
+servicev4subnet: 10.235.0.0/18
+servicev6subnet: fd85:ee78:d8a6:8607::3000/116
+asn: 64512
+routes:
+- 10.0.0.0/24
+- 10.0.2.0/24

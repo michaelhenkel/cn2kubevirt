@@ -15,9 +15,9 @@ type cloudInit struct {
 	Chpasswd       chpasswd          `yaml:"chpasswd"`
 	WriteFiles     []writeFiles      `yaml:"write_files"`
 	RunCMD         []string          `yaml:"runcmd"`
-	APT            map[string]source `yaml:"apt"`
 	Snap           map[string]string `yaml:"snap"`
 	Network        netw              `yaml:"network"`
+	Apt            apt               `yaml:"apt"`
 }
 
 type netw struct {
@@ -30,11 +30,6 @@ type ethernet struct {
 	Dhcp4 bool              `yaml:"dhcp4"`
 }
 
-type source struct {
-	Source string `yaml:"source"`
-	KeyID  string `yaml:"keyid"`
-}
-
 type chpasswd struct {
 	List   string `yaml:"list"`
 	Expire bool   `yaml:"expire"`
@@ -43,6 +38,15 @@ type chpasswd struct {
 type writeFiles struct {
 	Content string `yaml:"content"`
 	Path    string `yaml:"path"`
+}
+
+type apt struct {
+	Primary []primary `yaml:"primary"`
+}
+
+type primary struct {
+	Arches []string `yaml:"arches"`
+	Uri    string   `yaml:"uri"`
 }
 
 type instanceUser struct {
@@ -87,14 +91,20 @@ DNS=172.29.131.60`,
 			"systemctl restart systemd-resolved.service",
 			"netplan apply",
 		},
+		Apt: apt{
+			Primary: []primary{{
+				Arches: []string{"default"},
+				Uri:    "https://svl-artifactory.juniper.net/artifactory/common-ubuntu-remote/",
+			}},
+		},
 	}
 	content := `network:
   ethernets:
     enp2s0:
       dhcp4: true`
 	if len(routes) > 0 {
+		content = content + "\n      routes:"
 		for _, route := range routes {
-			content = content + "\n      routes:"
 			content = content + fmt.Sprintf("\n      - to: %s", route)
 			content = content + fmt.Sprintf("\n        via: %s", gateway)
 		}

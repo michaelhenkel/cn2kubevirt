@@ -127,6 +127,7 @@ data:
       name: contrail-k8s-apiserver
       namespace: contrail
     spec:
+      autonomousSystem: ASN
       common:
         replicas: REPLICAS
         containers:
@@ -155,10 +156,6 @@ data:
       name: contrail-k8s-kubemanager
       namespace: contrail
     spec:
-      podV4Subnet: PODV4SUBNET
-      podV6Subnet: PODV6SUBNET
-      serviceV4Subnet: SERVICEV4SUBNET
-      serviceV6Subnet: SERVICEV6SUBNET
       autonomousSystem: ASN
       common:
         replicas: REPLICAS
@@ -174,6 +171,7 @@ data:
       name: contrail-control
       namespace: contrail
     spec:
+      autonomousSystem: ASN
       common:
         replicas: REPLICAS
         containers:

@@ -6,15 +6,18 @@ go 1.16
 require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.0
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
-	github.com/spf13/cobra v1.1.1
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
+	github.com/spf13/cobra v1.1.3
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	k8s.io/api v0.20.2
 	k8s.io/apimachinery v0.20.2
 	k8s.io/client-go v12.0.0+incompatible
-	//k8s.io/klog v1.0.0
-	kubevirt.io/client-go v0.41.0-rc.0.0.20210602203928-edb77f316136
+	k8s.io/klog/v2 v2.10.0 // indirect
+	//kubevirt.io/client-go v0.41.0-rc.0.0.20210602203928-edb77f316136
+	kubevirt.io/client-go v0.44.1
 	ssd-git.juniper.net/contrail/cn2/contrail v0.0.0-00010101000000-000000000000
+//kubevirt.io/containerized-data-importer v1.37.1
 )
 
 replace (
@@ -24,8 +27,9 @@ replace (
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20210105115604-44119421ec6b
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47
 	github.com/operator-framework/operator-lifecycle-manager => github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5eb7ae5bdb7a
+	google.golang.org/grpc => google.golang.org/grpc v1.29.1
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.4
-
+	//k8s.io/klog => k8s.io/klog v2.10.0
 	k8s.io/api => k8s.io/api v0.20.2
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.2
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.2
@@ -35,10 +39,9 @@ replace (
 	k8s.io/cloud-provider => k8s.io/cloud-provider v0.20.2
 	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.20.2
 	k8s.io/code-generator => k8s.io/code-generator v0.20.2
-	k8s.io/component-base => k8s.io/component-base v0.20.2
+	k8s.io/component-base => ../component-base
 	k8s.io/cri-api => k8s.io/cri-api v0.20.2
 	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.20.2
-	k8s.io/klog => k8s.io/klog v0.4.0
 	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.20.2
 	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.20.2
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20210113233702-8566a335510f
@@ -53,7 +56,7 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.20.2
 	k8s.io/sample-controller => k8s.io/sample-controller v0.20.2
 
-	kubevirt.io/containerized-data-importer => kubevirt.io/containerized-data-importer v1.34.1
+	kubevirt.io/containerized-data-importer => kubevirt.io/containerized-data-importer v1.37.1
 	sigs.k8s.io/structured-merge-diff => sigs.k8s.io/structured-merge-diff v0.0.0-20190302045857-e85c7b244fd2
 	ssd-git.juniper.net/contrail/cn2/contrail => ../../../ssd-git.juniper.net/contrail/cn2/contrail
 

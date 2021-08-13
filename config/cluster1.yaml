@@ -1,7 +1,7 @@
 name: cluster1
 namespace: cluster1
-controller: 3
-worker: 8
+controller: 1
+worker: 1
 subnet: 10.0.0.0/24
 keypath: ~/.ssh/id_rsa.pub
 memory: 20G

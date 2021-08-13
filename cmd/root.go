@@ -14,6 +14,7 @@ var (
 func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.AddCommand(createCmd)
+	rootCmd.AddCommand(deleteCmd)
 }
 
 func initConfig() {

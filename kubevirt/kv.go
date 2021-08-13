@@ -19,7 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtV1 "kubevirt.io/client-go/api/v1"
-	"kubevirt.io/client-go/kubecli"
+	kvClientset "kubevirt.io/client-go/kubecli"
 )
 
 type KubevirtCluster struct {
@@ -36,16 +36,19 @@ type NetworkAnnotation struct {
 	Ips       []string
 }
 
-func (k *KubevirtCluster) Create(client kubecli.KubevirtClient) error {
+func (k *KubevirtCluster) Create(client kvClientset.KubevirtClient) error {
 	for _, vmi := range k.VirtualMachineInstances {
 		_, err := client.VirtualMachineInstance(vmi.Namespace).Get(vmi.Name, &metav1.GetOptions{})
 		if errors.IsNotFound(err) {
+			log.Infof("Creating VMI %s", vmi.Name)
 			_, err := client.VirtualMachineInstance(vmi.Namespace).Create(vmi)
 			if err != nil {
 				return err
 			}
 		} else if err != nil {
 			return err
+		} else {
+			log.Infof("VMI %s already exists", vmi.Name)
 		}
 	}
 	return nil
@@ -72,6 +75,7 @@ func (k *KubevirtCluster) Watch(client *k8s.Client, cl *cluster.Cluster) (map[st
 		if err != nil {
 			return nil, err
 		}
+		log.Infof("Waiting for VMIs")
 		var done = make(chan bool)
 		go func() {
 			for event := range watch.ResultChan() {
@@ -96,6 +100,7 @@ func (k *KubevirtCluster) Watch(client *k8s.Client, cl *cluster.Cluster) (map[st
 			}
 		}()
 		<-done
+		log.Infof("VMIs are up and running")
 	}
 	newPodList, err := client.K8S.CoreV1().Pods(cl.Namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("cluster=%s", cl.Name),

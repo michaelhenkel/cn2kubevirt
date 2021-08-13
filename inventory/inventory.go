@@ -108,6 +108,10 @@ func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, ser
 				"etcd_deployment_type":                "host",
 				"host_key_checking":                   "false",
 				"supplementary_addresses_in_ssl_keys": "[" + serviceIP + "]",
+				"kube_service_addresses":              cl.Servicev4subnet,
+				"kube_pods_subnet":                    cl.Podv4subnet,
+				"kube_service_addresses_ipv6":         cl.Servicev6subnet,
+				"kube_pods_subnet_ipv6":               cl.Podv6subnet,
 			},
 		},
 		KubeMaster: KubeMaster{
@@ -143,7 +147,7 @@ func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, ser
 	if err := os.WriteFile(cl.Kubeconfigdir+"/inventory.yaml", []byte(inventoryString), 0600); err != nil {
 		return err
 	}
-	log.Info("created inventory file %s/inventory.yaml", cl.Kubeconfigdir)
+	log.Infof("created inventory file %s/inventory.yaml", cl.Kubeconfigdir)
 
 	adminConfByte, err := os.ReadFile(cl.Kubeconfigdir + "/admin.conf")
 	if err != nil {

@@ -7,13 +7,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
-	"kubevirt.io/client-go/kubecli"
+	kvClientset "kubevirt.io/client-go/kubecli"
 	contrailClient "ssd-git.juniper.net/contrail/cn2/contrail/pkg/client/clientset_generated/clientset"
 )
 
 type Client struct {
 	K8S      *kubernetes.Clientset
-	Kubevirt kubecli.KubevirtClient
+	Kubevirt kvClientset.KubevirtClient
 	Nad      *nadClientset.Clientset
 	Contrail contrailClient.Clientset
 }
@@ -31,14 +31,22 @@ func NewClient() (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	kubevirtClient, err := kubecli.GetKubevirtClientFromRESTConfig(config)
+	kubevirtClient, err := kvClientset.GetKubevirtClientFromRESTConfig(config)
 	if err != nil {
 		return nil, err
 	}
 	nadClient, err := nadClientset.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	contrailClient, err := contrailClient.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
 	return &Client{
 		K8S:      clientset,
 		Kubevirt: kubevirtClient,
 		Nad:      nadClient,
+		Contrail: *contrailClient,
 	}, nil
 }
