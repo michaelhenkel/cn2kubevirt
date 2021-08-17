@@ -97,7 +97,7 @@ spec:
         - sh
         - -c
         - /manager --metrics-addr 127.0.0.1:8081
-        image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-k8s-deployer:latest
+        image: REGISTRY/contrail-k8s-deployer:TAG
         imagePullPolicy: Always
         name: contrail-k8s-deployer
       hostNetwork: true
@@ -106,7 +106,7 @@ spec:
         - sh
         - -c
         - kustomize build /crd | kubectl apply -f -
-        image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-k8s-crdloader:latest
+        image: REGISTRY/contrail-k8s-crdloader:TAG
         imagePullPolicy: Always
         name: contrail-k8s-crdloader
       nodeSelector:
@@ -131,7 +131,7 @@ data:
       common:
         replicas: REPLICAS
         containers:
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-k8s-apiserver:latest
+        - image: REGISTRY/contrail-k8s-apiserver:TAG
           name: contrail-k8s-apiserver
         nodeSelector:
           node-role.kubernetes.io/master: ""
@@ -145,7 +145,7 @@ data:
       common:
         replicas: REPLICAS
         containers:
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-k8s-controller:latest
+        - image: REGISTRY/contrail-k8s-controller:TAG
           name: contrail-k8s-controller
         nodeSelector:
           node-role.kubernetes.io/master: ""
@@ -160,7 +160,7 @@ data:
       common:
         replicas: REPLICAS
         containers:
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-k8s-kubemanager:latest
+        - image: REGISTRY/contrail-k8s-kubemanager:TAG
           name: contrail-k8s-kubemanager
         nodeSelector:
           node-role.kubernetes.io/master: ""
@@ -175,12 +175,12 @@ data:
       common:
         replicas: REPLICAS
         containers:
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-control:latest
+        - image: REGISTRY/contrail-control:TAG
           name: contrail-control
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-telemetry-exporter:latest
+        - image: REGISTRY/contrail-telemetry-exporter:TAG
           name: contrail-control-telemetry-exporter
         initContainers:
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-init:latest
+        - image: REGISTRY/contrail-init:TAG
           name: contrail-init
         nodeSelector:
           node-role.kubernetes.io/master: ""
@@ -196,16 +196,16 @@ data:
           gateway: GATEWAY
       common:
         containers:
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-vrouter-agent:latest
+        - image: REGISTRY/contrail-vrouter-agent:TAG
           name: contrail-vrouter-agent
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-init:latest
+        - image: REGISTRY/contrail-init:TAG
           name: contrail-watcher
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-telemetry-exporter:latest
+        - image: REGISTRY/contrail-telemetry-exporter:TAG
           name: contrail-vrouter-telemetry-exporter
         initContainers:
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-init:latest
+        - image: REGISTRY/contrail-init:TAG
           name: contrail-init
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-cni-init:latest
+        - image: REGISTRY/contrail-cni-init:TAG
           name: contrail-cni-init
         nodeSelector:
           node-role.kubernetes.io/master: ""
@@ -230,16 +230,16 @@ data:
                   values:
                   - ""
         containers:
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-vrouter-agent:latest
+        - image: REGISTRY/contrail-vrouter-agent:TAG
           name: contrail-vrouter-agent
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-init:latest
+        - image: REGISTRY/contrail-init:TAG
           name: contrail-watcher
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-telemetry-exporter:latest
+        - image: REGISTRY/contrail-telemetry-exporter:TAG
           name: contrail-vrouter-telemetry-exporter
         initContainers:
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-init:latest
+        - image: REGISTRY/contrail-init:TAG
           name: contrail-init
-        - image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-cni-init:latest
+        - image: REGISTRY/contrail-cni-init:TAG
           name: contrail-cni-init
 kind: ConfigMap
 metadata:
@@ -261,7 +261,7 @@ spec:
         - sh
         - -c
         - until kubectl wait --for condition=established --timeout=60s crd/apiservers.configplane.juniper.net; do echo 'waiting for apiserver crd'; sleep 2; done && until ls /tmp/contrail/contrail-cr.yaml; do sleep 2; echo 'waiting for manifest'; done && kubectl apply -f /tmp/contrail/contrail-cr.yaml && kubectl -n contrail delete job apply-contrail
-        image: svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/contrail-k8s-applier:latest
+        image: REGISTRY/contrail-k8s-applier:TAG
         name: applier
         volumeMounts:
         - mountPath: /tmp/contrail
@@ -281,12 +281,17 @@ spec:
           name: contrail-cr
         name: cr-volume`
 
-func NewDeployer(scale int, gateway, podv4subnet, podv6subnet, servicev4subnet, servicev6subnet string, asn int) string {
+func NewDeployer(scale int, gateway, podv4subnet, podv6subnet, servicev4subnet, servicev6subnet, registry, tag string, asn int) string {
+	if tag == "" {
+		tag = "latest"
+	}
 	template := strings.Replace(deployerTemplate, "GATEWAY", gateway, -1)
 	template = strings.Replace(template, "PODV4SUBNET", podv4subnet, -1)
 	template = strings.Replace(template, "PODV6SUBNET", podv6subnet, -1)
 	template = strings.Replace(template, "SERVICEV4SUBNET", servicev4subnet, -1)
 	template = strings.Replace(template, "SERVICEV6SUBNET", servicev6subnet, -1)
+	template = strings.Replace(template, "REGISTRY", registry, -1)
+	template = strings.Replace(template, "TAG", tag, -1)
 	template = strings.Replace(template, "ASN", strconv.Itoa(asn), -1)
 	return strings.Replace(template, "REPLICAS", strconv.Itoa(scale), -1)
 }

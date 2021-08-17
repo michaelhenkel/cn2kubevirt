@@ -3,6 +3,7 @@ package cloudinit
 import (
 	"fmt"
 
+	"github.com/michaelhenkel/cn2kubevirt/roles"
 	"gopkg.in/yaml.v3"
 )
 
@@ -59,7 +60,7 @@ type instanceUser struct {
 	SSHAuthorizedKeys []string `yaml:"ssh-authorized-keys"`
 }
 
-func CreateCloudInit(hostname, key, gateway string, routes []string) (string, error) {
+func CreateCloudInit(hostname, key, gateway, criomirror, dns, registry string, routes []string, distro roles.Distro) (string, error) {
 	ci := cloudInit{
 		Hostname:       hostname,
 		ManageEtcHosts: true,
@@ -84,38 +85,61 @@ root:contrail`,
 		},
 		WriteFiles: []writeFiles{{
 			Content: `[Resolve]
-DNS=172.29.131.60`,
+DNS=` + dns,
 			Path: "/etc/systemd/resolved.conf",
 		}},
 		RunCMD: []string{
 			"systemctl restart systemd-resolved.service",
-			"netplan apply",
+			`echo "10.160.12.173 svl-artifactory.juniper.net" >> /etc/hosts`,
 		},
-		Apt: apt{
+	}
+
+	switch distro {
+	case roles.Ubuntu:
+		content := `network:
+	ethernets:
+	  enp2s0:
+		dhcp4: true`
+		if len(routes) > 0 {
+			content = content + "\n      routes:"
+			for _, route := range routes {
+				content = content + fmt.Sprintf("\n      - to: %s", route)
+				content = content + fmt.Sprintf("\n        via: %s", gateway)
+			}
+		}
+
+		wf := writeFiles{
+			Content: content,
+			Path:    "/etc/netplan/intf.yaml",
+		}
+
+		ci.WriteFiles = append(ci.WriteFiles, wf)
+
+		ci.Apt = apt{
 			Primary: []primary{{
 				Arches: []string{"default"},
 				Uri:    "https://svl-artifactory.juniper.net/artifactory/common-ubuntu-remote/",
 			}},
-		},
-	}
-	content := `network:
-  ethernets:
-    enp2s0:
-      dhcp4: true`
-	if len(routes) > 0 {
-		content = content + "\n      routes:"
-		for _, route := range routes {
-			content = content + fmt.Sprintf("\n      - to: %s", route)
-			content = content + fmt.Sprintf("\n        via: %s", gateway)
 		}
+		ci.RunCMD = append(ci.RunCMD, "netplan apply")
 	}
 
-	wf := writeFiles{
-		Content: content,
-		Path:    "/etc/netplan/intf.yaml",
+	if registry != "" {
+		content := `[[registry]]
+location = "` + registry + `"
+insecure = true`
+		wf := writeFiles{
+			Content: content,
+			Path:    "/etc/containers/registries.conf.d/001-local.conf",
+		}
+
+		ci.WriteFiles = append(ci.WriteFiles, wf)
 	}
 
-	ci.WriteFiles = append(ci.WriteFiles, wf)
+	if criomirror != "" {
+		runcmd := fmt.Sprintf(`echo "%s download.opensuse.org" >> /etc/hosts`, criomirror)
+		ci.RunCMD = append(ci.RunCMD, runcmd)
+	}
 
 	ciByte, err := yaml.Marshal(&ci)
 	if err != nil {

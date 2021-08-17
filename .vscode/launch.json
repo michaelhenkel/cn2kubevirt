@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "/home/mhenkel/go/src/github.com/michaelhenkel/cn2kubevirt/main.go",
-            "args": ["create","-f","config/cluster1.yaml"]
+            "args": ["create","-f","/home/mhenkel/speedrun/cluster1/1_cluster.yaml"]
         }
     ]
 }

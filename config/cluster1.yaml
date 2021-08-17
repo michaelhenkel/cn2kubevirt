@@ -5,8 +5,10 @@ worker: 1
 subnet: 10.0.0.0/24
 keypath: ~/.ssh/id_rsa.pub
 memory: 20G
-cpu: "6"
-image: "svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/containerdisk-ubuntu:20.04.1"
+cpu: "8"
+tag: latest
+image: "containerdisk-ubuntu:20.04.1"
+distro: ubuntu
 suffix: local
 kubeconfigdir: /tmp/cluster1
 podv4subnet: 10.234.64.0/18

@@ -207,7 +207,7 @@ func createCluster() error {
 		}
 	*/
 
-	kvc, err := kubevirt.NewKubevirtCluster(cl)
+	kvc, err := kubevirt.NewKubevirtCluster(cl, client)
 	if err != nil {
 		return err
 	}
@@ -286,7 +286,13 @@ func createCluster() error {
 		<-done
 	}
 	log.Infof("ClusterIP: %s", serviceIP)
-	if err := inventory.NewInventory(instanceMap, *cl, serviceIP); err != nil {
+
+	registrySvc := "svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev"
+	_, err = client.K8S.CoreV1().Services("default").Get(context.Background(), "registry", metav1.GetOptions{})
+	if err == nil {
+		registrySvc = "registry.default.svc.cluster1.local:5000"
+	}
+	if err := inventory.NewInventory(instanceMap, *cl, serviceIP, registrySvc); err != nil {
 		return err
 	}
 	return nil

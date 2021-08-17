@@ -127,7 +127,30 @@ func (k *KubevirtCluster) Watch(client *k8s.Client, cl *cluster.Cluster) (map[st
 	return instanceMap, nil
 }
 
-func NewKubevirtCluster(cl *cluster.Cluster) (*KubevirtCluster, error) {
+func NewKubevirtCluster(cl *cluster.Cluster, client *k8s.Client) (*KubevirtCluster, error) {
+	var criomirror string
+	aptSvc, err := client.K8S.CoreV1().Services("default").Get(context.Background(), "aptmirror", metav1.GetOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return nil, err
+	} else if err == nil {
+		criomirror = aptSvc.Spec.ClusterIP
+	}
+	dnsSvc, err := client.K8S.CoreV1().Services("kube-system").Get(context.Background(), "coredns", metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	dnsSvcIP := dnsSvc.Spec.ClusterIP
+
+	var registrySvc string
+
+	image := fmt.Sprintf("svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/%s", cl.Image)
+
+	regSvc, err := client.K8S.CoreV1().Services("default").Get(context.Background(), "registry", metav1.GetOptions{})
+	if err == nil {
+		registrySvc = "registry.default.svc.cluster1.local:5000"
+		image = fmt.Sprintf("%s:5000/%s", regSvc.Spec.ClusterIP, cl.Image)
+	}
+
 	kvCluster := &KubevirtCluster{}
 	expandedKeypath, err := hd.Expand(cl.Keypath)
 	if err != nil {
@@ -143,31 +166,45 @@ func NewKubevirtCluster(cl *cluster.Cluster) (*KubevirtCluster, error) {
 	}
 	ip := ipnet.To4()
 	ip[3]++
+
 	for c := 0; c < cl.Controller; c++ {
-		ci, err := cloudinit.CreateCloudInit(fmt.Sprintf("%s-%d", roles.Controller, c), string(pubKey), ip.String(), cl.Routes)
+		ci, err := cloudinit.CreateCloudInit(fmt.Sprintf("%s-%d", roles.Controller, c), string(pubKey), ip.String(), criomirror, dnsSvcIP, registrySvc, cl.Routes, cl.Distro)
 		if err != nil {
 			return nil, err
 		}
-		kvCluster.VirtualMachineInstances = append(kvCluster.VirtualMachineInstances, defineVMI(cl, ci, c, roles.Controller))
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("%s-%d", roles.Controller, c),
+				Namespace: cl.Namespace,
+			},
+			StringData: map[string]string{"userdata": ci},
+		}
+		if _, err := client.K8S.CoreV1().Secrets(cl.Namespace).Create(context.Background(), secret, metav1.CreateOptions{}); err != nil {
+			return nil, err
+		}
+		kvCluster.VirtualMachineInstances = append(kvCluster.VirtualMachineInstances, defineVMI(cl, ci, c, roles.Controller, image))
 	}
 	for c := 0; c < cl.Worker; c++ {
-		ci, err := cloudinit.CreateCloudInit(fmt.Sprintf("%s-%d", roles.Worker, c), string(pubKey), ip.String(), cl.Routes)
+		ci, err := cloudinit.CreateCloudInit(fmt.Sprintf("%s-%d", roles.Worker, c), string(pubKey), ip.String(), criomirror, dnsSvcIP, registrySvc, cl.Routes, cl.Distro)
 		if err != nil {
 			return nil, err
 		}
-		kvCluster.VirtualMachineInstances = append(kvCluster.VirtualMachineInstances, defineVMI(cl, ci, c, roles.Worker))
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("%s-%d", roles.Worker, c),
+				Namespace: cl.Namespace,
+			},
+			StringData: map[string]string{"userdata": ci},
+		}
+		if _, err := client.K8S.CoreV1().Secrets(cl.Namespace).Create(context.Background(), secret, metav1.CreateOptions{}); err != nil {
+			return nil, err
+		}
+		kvCluster.VirtualMachineInstances = append(kvCluster.VirtualMachineInstances, defineVMI(cl, ci, c, roles.Worker, image))
 	}
-	/*
-		clByte, err := yaml.Marshal(kvCluster)
-		if err != nil {
-			return nil, err
-		}
-		fmt.Println(string(clByte))
-	*/
 	return kvCluster, nil
 }
 
-func defineVMI(cl *cluster.Cluster, ci string, idx int, role roles.Role) *kubevirtV1.VirtualMachineInstance {
+func defineVMI(cl *cluster.Cluster, ci string, idx int, role roles.Role, image string) *kubevirtV1.VirtualMachineInstance {
 	return &kubevirtV1.VirtualMachineInstance{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%d", role, idx),
@@ -228,7 +265,7 @@ func defineVMI(cl *cluster.Cluster, ci string, idx int, role roles.Role) *kubevi
 				Name: fmt.Sprintf("%s-disk", cl.Name),
 				VolumeSource: kubevirtV1.VolumeSource{
 					ContainerDisk: &kubevirtV1.ContainerDiskSource{
-						Image:           cl.Image,
+						Image:           image,
 						ImagePullPolicy: "Always",
 					},
 				},
@@ -236,7 +273,9 @@ func defineVMI(cl *cluster.Cluster, ci string, idx int, role roles.Role) *kubevi
 				Name: "cloudinitdisk",
 				VolumeSource: kubevirtV1.VolumeSource{
 					CloudInitNoCloud: &kubevirtV1.CloudInitNoCloudSource{
-						UserData: ci,
+						UserDataSecretRef: &v1.LocalObjectReference{
+							Name: fmt.Sprintf("%s-%d", role, idx),
+						},
 					},
 				},
 			}},

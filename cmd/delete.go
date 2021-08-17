@@ -64,6 +64,16 @@ func delete(clusterName string) error {
 			return err
 		}
 	}
+
+	secretList, err := client.K8S.CoreV1().Secrets(clusterName).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, secret := range secretList.Items {
+		if err := client.K8S.CoreV1().Secrets(clusterName).Delete(context.Background(), secret.Name, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
 	/*
 		vnrList, err := client.Contrail.CoreV1alpha1().VirtualNetworkRouters(clusterName).List(context.Background(), metav1.ListOptions{})
 		if err != nil {

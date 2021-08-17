@@ -1,5 +1,7 @@
 package cluster
 
+import "github.com/michaelhenkel/cn2kubevirt/roles"
+
 type Cluster struct {
 	Name            string
 	Namespace       string
@@ -18,4 +20,6 @@ type Cluster struct {
 	Servicev6subnet string
 	Asn             int
 	Routes          []string
+	Distro          roles.Distro
+	Tag             string
 }

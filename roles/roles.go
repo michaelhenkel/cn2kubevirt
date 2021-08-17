@@ -1,10 +1,13 @@
 package roles
 
 type Role string
+type Distro string
 
 const (
-	Worker     Role = "worker"
-	Controller Role = "controller"
+	Worker     Role   = "worker"
+	Controller Role   = "controller"
+	Centos     Distro = "centos"
+	Ubuntu     Distro = "ubuntu"
 )
 
 type NetworkAnnotation struct {

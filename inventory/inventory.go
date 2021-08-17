@@ -55,7 +55,7 @@ type InstanceIPRole struct {
 	Networks []roles.NetworkAnnotation
 }
 
-func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, serviceIP string) error {
+func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, serviceIP, registry string) error {
 	var allHosts = make(map[string]Host)
 	var kubeMasterHosts = make(map[string]struct{})
 	var kubeNodeHosts = make(map[string]struct{})
@@ -112,6 +112,7 @@ func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, ser
 				"kube_pods_subnet":                    cl.Podv4subnet,
 				"kube_service_addresses_ipv6":         cl.Servicev6subnet,
 				"kube_pods_subnet_ipv6":               cl.Podv6subnet,
+				//"loadbalancer_apiserver":              serviceIP,
 			},
 		},
 		KubeMaster: KubeMaster{
@@ -149,24 +150,26 @@ func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, ser
 	}
 	log.Infof("created inventory file %s/inventory.yaml", cl.Kubeconfigdir)
 
-	adminConfByte, err := os.ReadFile(cl.Kubeconfigdir + "/admin.conf")
-	if err != nil {
-		return err
-	}
-	r := regexp.MustCompile(`server: https://(.*):6443`)
-	currentIP := r.FindStringSubmatch(string(adminConfByte))
-	adminConfString := strings.Replace(string(string(adminConfByte)), currentIP[1], serviceIP, -1)
-	if err := os.WriteFile(cl.Kubeconfigdir+"/admin.conf", []byte(adminConfString), 0600); err != nil {
-		return err
-	}
-	log.Infof("created deployer file %s/admin.conf", cl.Kubeconfigdir)
+	/*
+		adminConfByte, err := os.ReadFile(cl.Kubeconfigdir + "/admin.conf")
+		if err != nil {
+			return err
+		}
+		r := regexp.MustCompile(`server: https://(.*):6443`)
+		currentIP := r.FindStringSubmatch(string(adminConfByte))
+		adminConfString := strings.Replace(string(string(adminConfByte)), currentIP[1], serviceIP, -1)
+		if err := os.WriteFile(cl.Kubeconfigdir+"/admin.conf", []byte(adminConfString), 0600); err != nil {
+			return err
+		}
+	*/
+	log.Infof("created kubeconfig file %s/admin.conf", cl.Kubeconfigdir)
 	ipnet, _, err := net.ParseCIDR(cl.Subnet)
 	if err != nil {
 		return err
 	}
 	ip := ipnet.To4()
 	ip[3]++
-	deployer := deployer.NewDeployer(cl.Controller, ip.String(), cl.Podv4subnet, cl.Podv6subnet, cl.Servicev4subnet, cl.Servicev6subnet, cl.Asn)
+	deployer := deployer.NewDeployer(cl.Controller, ip.String(), cl.Podv4subnet, cl.Podv6subnet, cl.Servicev4subnet, cl.Servicev6subnet, registry, cl.Tag, cl.Asn)
 	if err := os.WriteFile(cl.Kubeconfigdir+"/deployer.yaml", []byte(deployer), 0600); err != nil {
 		return err
 	}
