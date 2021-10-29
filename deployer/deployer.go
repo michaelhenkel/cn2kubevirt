@@ -290,7 +290,7 @@ func NewDeployer(scale int, gateway, podv4subnet, podv6subnet, servicev4subnet, 
 	template = strings.Replace(template, "PODV6SUBNET", podv6subnet, -1)
 	template = strings.Replace(template, "SERVICEV4SUBNET", servicev4subnet, -1)
 	template = strings.Replace(template, "SERVICEV6SUBNET", servicev6subnet, -1)
-	template = strings.Replace(template, "REGISTRY", registry, -1)
+	template = strings.Replace(template, "REGISTRY", "svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev", -1)
 	template = strings.Replace(template, "TAG", tag, -1)
 	template = strings.Replace(template, "ASN", strconv.Itoa(asn), -1)
 	return strings.Replace(template, "REPLICAS", strconv.Itoa(scale), -1)

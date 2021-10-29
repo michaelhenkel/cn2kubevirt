@@ -145,10 +145,11 @@ func NewKubevirtCluster(cl *cluster.Cluster, client *k8s.Client) (*KubevirtClust
 
 	image := fmt.Sprintf("svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev/%s", cl.Image)
 
-	regSvc, err := client.K8S.CoreV1().Services("default").Get(context.Background(), "registry", metav1.GetOptions{})
+	_, err = client.K8S.CoreV1().Services("default").Get(context.Background(), "registry", metav1.GetOptions{})
 	if err == nil {
 		registrySvc = "registry.default.svc.cluster1.local:5000"
-		image = fmt.Sprintf("%s:5000/%s", regSvc.Spec.ClusterIP, cl.Image)
+		//image = fmt.Sprintf("%s:5000/%s", regSvc.Spec.ClusterIP, cl.Image)
+		image = fmt.Sprintf("%s/%s", registrySvc, cl.Image)
 	}
 
 	kvCluster := &KubevirtCluster{}

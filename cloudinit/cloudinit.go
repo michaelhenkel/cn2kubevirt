@@ -97,9 +97,9 @@ DNS=` + dns,
 	switch distro {
 	case roles.Ubuntu:
 		content := `network:
-	ethernets:
-	  enp2s0:
-		dhcp4: true`
+  ethernets:
+    enp2s0:
+      dhcp4: true`
 		if len(routes) > 0 {
 			content = content + "\n      routes:"
 			for _, route := range routes {
@@ -122,6 +122,16 @@ DNS=` + dns,
 			}},
 		}
 		ci.RunCMD = append(ci.RunCMD, "netplan apply")
+		ci.RunCMD = append(ci.RunCMD, "ethtool -K enp2s0 tx off")
+
+	case roles.Centos:
+		if len(routes) > 0 {
+			for _, route := range routes {
+				ci.RunCMD = append(ci.RunCMD, fmt.Sprintf(`nmcli connection modify "Wired connection 1" +ipv4.routes "%s %s"`, route, gateway))
+			}
+			ci.RunCMD = append(ci.RunCMD, `nmcli connection down "Wired connection 1"`)
+			ci.RunCMD = append(ci.RunCMD, `nmcli connection up "Wired connection 1"`)
+		}
 	}
 
 	if registry != "" {
@@ -132,7 +142,6 @@ insecure = true`
 			Content: content,
 			Path:    "/etc/containers/registries.conf.d/001-local.conf",
 		}
-
 		ci.WriteFiles = append(ci.WriteFiles, wf)
 	}
 
