@@ -83,7 +83,8 @@ func createCluster() error {
 				Name:      cl.Name,
 				Namespace: cl.Namespace,
 				Annotations: map[string]string{
-					"juniper.net/networks": fmt.Sprintf(`{"ipamV4Subnet": "%s","fabricSNAT": true, "routeTargetList": ["target:1:1"]}`, cl.Subnet),
+					//"juniper.net/networks": fmt.Sprintf(`{"ipamV4Subnet": "%s","fabricSNAT": true, "routeTargetList": ["target:1:1"]}`, cl.Subnet),
+					"juniper.net/networks": fmt.Sprintf(`{"ipamV4Subnet": "%s"}`, cl.Subnet),
 				},
 			},
 			Spec: nadv1.NetworkAttachmentDefinitionSpec{
