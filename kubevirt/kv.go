@@ -18,7 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubevirtV1 "kubevirt.io/client-go/api/v1"
+	kubevirtV1 "kubevirt.io/client-go/apis/core/v1"
 	kvClientset "kubevirt.io/client-go/kubecli"
 )
 
@@ -37,6 +37,7 @@ type NetworkAnnotation struct {
 }
 
 func (k *KubevirtCluster) Create(client kvClientset.KubevirtClient) error {
+
 	for _, vmi := range k.VirtualMachineInstances {
 		_, err := client.VirtualMachineInstance(vmi.Namespace).Get(vmi.Name, &metav1.GetOptions{})
 		if errors.IsNotFound(err) {
