@@ -18,7 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubevirtV1 "kubevirt.io/client-go/apis/core/v1"
+	kubevirtV1 "kubevirt.io/api/core/v1"
 	kvClientset "kubevirt.io/client-go/kubecli"
 )
 

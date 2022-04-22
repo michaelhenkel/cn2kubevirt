@@ -11,7 +11,7 @@ require (
 	k8s.io/api v0.23.5
 	k8s.io/apimachinery v0.23.5
 	k8s.io/client-go v12.0.0+incompatible
-	kubevirt.io/client-go v0.52.0
+	kubevirt.io/client-go v0.52.0-rc.0.0.20220421225949-bfc440a166e6
 	ssd-git.juniper.net/contrail/cn2 v0.0.0-00010101000000-000000000000
 )
 
@@ -56,7 +56,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.1 // indirect
+	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.2.0 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -114,7 +114,7 @@ require (
 	k8s.io/klog/v2 v2.60.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65 // indirect
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
-	kubevirt.io/api v0.0.0-20220408165751-a714f7d91da0 // indirect
+	kubevirt.io/api v0.0.0-20220421225948-dc2027dd1674 // indirect
 	kubevirt.io/containerized-data-importer-api v1.42.0 // indirect
 	kubevirt.io/controller-lifecycle-operator-sdk v0.2.1 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.30 // indirect
@@ -124,7 +124,6 @@ require (
 )
 
 replace (
-	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20210113233702-8566a335510f
 	github.com/go-openapi/spec => github.com/go-openapi/spec v0.19.3
 	github.com/google/gnostic => github.com/googleapis/gnostic v0.5.5
 	github.com/googleapis/gnostic => github.com/google/gnostic v0.5.7-v3refs
