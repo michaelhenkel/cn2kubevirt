@@ -8,6 +8,7 @@ type Cluster struct {
 	Controller      int
 	Worker          int
 	Subnet          string
+	Ctrldatasubnet  string
 	Keypath         string
 	Memory          string
 	Cpu             string

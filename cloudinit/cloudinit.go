@@ -60,7 +60,7 @@ type instanceUser struct {
 	SSHAuthorizedKeys []string `yaml:"ssh-authorized-keys"`
 }
 
-func CreateCloudInit(hostname, key, gateway, criomirror, dns, registry string, routes []string, distro roles.Distro) (string, error) {
+func CreateCloudInit(hostname, key, gateway, criomirror, dns, registry string, routes []string, distro roles.Distro, ctrlData bool) (string, error) {
 	ci := cloudInit{
 		Hostname:       hostname,
 		ManageEtcHosts: true,
@@ -90,16 +90,26 @@ DNS=` + dns,
 		}},
 		RunCMD: []string{
 			"systemctl restart systemd-resolved.service",
-			`echo "10.160.12.173 svl-artifactory.juniper.net" >> /etc/hosts`,
+			//`echo "10.160.12.173 svl-artifactory.juniper.net" >> /etc/hosts`,
 		},
 	}
 
 	switch distro {
 	case roles.Ubuntu:
-		content := `network:
+		var content string
+		if ctrlData {
+			content = `network:
+  ethernets:
+    enp2s0:
+      dhcp4: true
+    enp3s0:
+      dhcp4: true`
+		} else {
+			content = `network:
   ethernets:
     enp2s0:
       dhcp4: true`
+		}
 		if len(routes) > 0 {
 			content = content + "\n      routes:"
 			for _, route := range routes {
@@ -121,8 +131,13 @@ DNS=` + dns,
 				Uri:    "https://svl-artifactory.juniper.net/artifactory/common-ubuntu-remote/",
 			}},
 		}
+
 		ci.RunCMD = append(ci.RunCMD, "netplan apply")
+		ci.RunCMD = append(ci.RunCMD, "ethtool -K enp1s0 tx off")
 		ci.RunCMD = append(ci.RunCMD, "ethtool -K enp2s0 tx off")
+		if ctrlData {
+			ci.RunCMD = append(ci.RunCMD, "ethtool -K enp3s0 tx off")
+		}
 
 	case roles.Centos:
 		if len(routes) > 0 {

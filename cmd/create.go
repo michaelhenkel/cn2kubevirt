@@ -45,6 +45,81 @@ var createCmd = &cobra.Command{
 	},
 }
 
+func createNad(cl *cluster.Cluster, client *k8s.Client, subnet string, name string, snat bool) error {
+	_, err := client.Nad.K8sCniCncfIoV1().NetworkAttachmentDefinitions(cl.Namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		/*
+			var networkDef string
+			if snat {
+				networkDef = fmt.Sprintf(`{"ipamV4Subnet": "%s","fabricSNAT": true}`, subnet)
+			} else {
+				networkDef = fmt.Sprintf(`{"ipamV4Subnet": "%s"}`, subnet)
+			}
+		*/
+		networkDef := fmt.Sprintf(`{"ipamV4Subnet": "%s"}`, subnet)
+		nad := &nadv1.NetworkAttachmentDefinition{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: cl.Namespace,
+				Annotations: map[string]string{
+					"juniper.net/networks": networkDef,
+				},
+			},
+			Spec: nadv1.NetworkAttachmentDefinitionSpec{
+				Config: `{"cniVersion": "0.3.1","name": "contrail-k8s-cni",	"type": "contrail-k8s-cni"}`,
+			},
+		}
+		log.Infof("Creating NAD %s", name)
+		_, err = client.Nad.K8sCniCncfIoV1().NetworkAttachmentDefinitions(cl.Namespace).Create(context.Background(), nad, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+
+		watch := false
+		nad, err = client.Nad.K8sCniCncfIoV1().NetworkAttachmentDefinitions(cl.Namespace).Get(context.Background(), nad.Name, metav1.GetOptions{})
+		if errors.IsNotFound(err) {
+			watch = true
+		} else if err != nil {
+			return err
+		}
+		txt := fmt.Sprintf("success creating VirtualNetwork %s v4Subnet: %s ", name, subnet)
+		status, ok := nad.ObjectMeta.Annotations["juniper.net/networks-status"]
+		if !ok || status != txt {
+			watch = true
+		}
+		if watch {
+			log.Infof("Waiting for NAD %s", name)
+			wait := 5
+			for i := 0; i < wait; i++ {
+				nad, err = client.Nad.K8sCniCncfIoV1().NetworkAttachmentDefinitions(cl.Namespace).Get(context.Background(), nad.Name, metav1.GetOptions{})
+				if err == nil {
+					txt := fmt.Sprintf("success creating VirtualNetwork %s v4Subnet: %s ", name, subnet)
+					status, ok := nad.ObjectMeta.Annotations["juniper.net/networks-status"]
+					if ok && status == txt {
+						break
+					}
+				}
+				time.Sleep(time.Second * 1)
+			}
+		}
+		log.Infof("NAD created %s", name)
+	} else if err != nil {
+		return err
+	} else {
+		log.Infof("NAD %s already exists", subnet)
+	}
+	vn, err := client.Contrail.CoreV1alpha1().VirtualNetworks(cl.Namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	log.Info("Adding label to VirtualNetwork")
+	vn.Labels["core.juniper.net/virtualnetwork"] = "cluster"
+	if _, err := client.Contrail.CoreV1alpha1().VirtualNetworks(cl.Namespace).Update(context.Background(), vn, metav1.UpdateOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func createCluster() error {
 	clusterByte, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -76,137 +151,16 @@ func createCluster() error {
 	} else {
 		log.Infof("Namespace %s already exists", cl.Namespace)
 	}
-	_, err = client.Nad.K8sCniCncfIoV1().NetworkAttachmentDefinitions(cl.Namespace).Get(context.Background(), cl.Name, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		nad := &nadv1.NetworkAttachmentDefinition{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      cl.Name,
-				Namespace: cl.Namespace,
-				Annotations: map[string]string{
-					//"juniper.net/networks": fmt.Sprintf(`{"ipamV4Subnet": "%s","fabricSNAT": true, "routeTargetList": ["target:1:1"]}`, cl.Subnet),
-					"juniper.net/networks": fmt.Sprintf(`{"ipamV4Subnet": "%s"}`, cl.Subnet),
-				},
-			},
-			Spec: nadv1.NetworkAttachmentDefinitionSpec{
-				Config: `{"cniVersion": "0.3.1","name": "contrail-k8s-cni",	"type": "contrail-k8s-cni"}`,
-			},
-		}
-		log.Infof("Creating NAD %s", cl.Name)
-		_, err = client.Nad.K8sCniCncfIoV1().NetworkAttachmentDefinitions(cl.Namespace).Create(context.Background(), nad, metav1.CreateOptions{})
-		if err != nil {
-			return err
-		}
-		/*
-			nadWatch, err := client.Nad.K8sCniCncfIoV1().NetworkAttachmentDefinitions(cl.Namespace).Watch(context.Background(), metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("vn=%s", cl.Name),
-			})
-			if err != nil {
-				return err
-			}
-		*/
-
-		watch := false
-		nad, err = client.Nad.K8sCniCncfIoV1().NetworkAttachmentDefinitions(cl.Namespace).Get(context.Background(), nad.Name, metav1.GetOptions{})
-		if errors.IsNotFound(err) {
-			watch = true
-		} else if err != nil {
-			return err
-		}
-		txt := fmt.Sprintf("success creating VirtualNetwork %s v4Subnet: %s ", cl.Name, cl.Subnet)
-		status, ok := nad.ObjectMeta.Annotations["juniper.net/networks-status"]
-		if !ok || status != txt {
-			watch = true
-		}
-		if watch {
-			log.Infof("Waiting for NAD %s", cl.Name)
-			wait := 5
-			for i := 0; i < wait; i++ {
-				nad, err = client.Nad.K8sCniCncfIoV1().NetworkAttachmentDefinitions(cl.Namespace).Get(context.Background(), nad.Name, metav1.GetOptions{})
-				if err == nil {
-					txt := fmt.Sprintf("success creating VirtualNetwork %s v4Subnet: %s ", cl.Name, cl.Subnet)
-					status, ok := nad.ObjectMeta.Annotations["juniper.net/networks-status"]
-					if ok && status == txt {
-						break
-					}
-				}
-				time.Sleep(time.Second * 1)
-			}
-			/*
-				var done = make(chan bool)
-				go func() {
-					for event := range nadWatch.ResultChan() {
-						fmt.Println("got event")
-						s, ok := event.Object.(*nadv1.NetworkAttachmentDefinition)
-						if !ok {
-							log.Fatal("unexpected type")
-						}
-						status, ok := s.ObjectMeta.Annotations["juniper.net/networks-status"]
-						if ok {
-							fmt.Println(status)
-							fmt.Println(txt)
-							if status == txt {
-								done <- true
-							}
-						}
-					}
-				}()
-				<-done
-				if err != nil {
-					return err
-				}
-			*/
-		}
-		log.Infof("NAD created %s", cl.Name)
-	} else if err != nil {
-		return err
-	} else {
-		log.Infof("NAD %s already exists", cl.Name)
-	}
-	vn, err := client.Contrail.CoreV1alpha1().VirtualNetworks(cl.Namespace).Get(context.Background(), cl.Name, metav1.GetOptions{})
-	if err != nil {
+	if err := createNad(cl, client, cl.Subnet, cl.Name, true); err != nil {
 		return err
 	}
-	log.Info("Adding label to VirtualNetwork")
-	vn.Labels["core.juniper.net/virtualnetwork"] = "cluster"
-	if _, err := client.Contrail.CoreV1alpha1().VirtualNetworks(cl.Namespace).Update(context.Background(), vn, metav1.UpdateOptions{}); err != nil {
-		return err
-	}
-	/*
-		_, err = client.Contrail.CoreV1alpha1().VirtualNetworkRouters(cl.Namespace).Get(context.Background(), cl.Name, metav1.GetOptions{})
-		if errors.IsNotFound(err) {
-			vnr := &v1alpha1.VirtualNetworkRouter{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      cl.Name + "vnr",
-					Namespace: cl.Namespace,
-					Labels:    map[string]string{"core.juniper.net/virtualnetworkrouter": "cluster"},
-				},
-				Spec: v1alpha1.VirtualNetworkRouterSpec{
-					Type: v1alpha1.VirtualNetworkRouterType("mesh"),
-					VirtualNetworkSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{"core.juniper.net/virtualnetwork": "cluster"},
-					},
-					Import: v1alpha1.ImportVirtualNetworkRouter{
-						VirtualNetworkRouters: []v1alpha1.VirtualNetworkRouterEntry{{
-							VirtualNetworkRouterSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{"core.juniper.net/virtualnetworkrouter": "cluster"},
-							},
-							NamespaceSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{"namespace": "cluster"},
-							},
-						}},
-					},
-				},
-			}
-			log.Infof("Creating VNR %s", cl.Name)
-			if _, err := client.Contrail.CoreV1alpha1().VirtualNetworkRouters(cl.Namespace).Create(context.Background(), vnr, metav1.CreateOptions{}); err != nil {
-				return err
-			}
-		} else if err != nil {
+	//fmt.Println("CTRL", cl.Ctrldatasubnet)
+	//os.Exit(0)
+	if cl.Ctrldatasubnet != "" {
+		if err := createNad(cl, client, cl.Ctrldatasubnet, cl.Name+"-ctrldata", false); err != nil {
 			return err
-		} else {
-			log.Infof("VNR %s already exists", cl.Name)
 		}
-	*/
+	}
 
 	kvc, err := kubevirt.NewKubevirtCluster(cl, client)
 	if err != nil {
@@ -293,7 +247,11 @@ func createCluster() error {
 	if err == nil {
 		registrySvc = "registry.default.svc.cluster1.local:5000"
 	}
-	if err := inventory.NewInventory(instanceMap, *cl, serviceIP, registrySvc); err != nil {
+	var ctrlData bool
+	if cl.Ctrldatasubnet != "" {
+		ctrlData = true
+	}
+	if err := inventory.NewInventory(instanceMap, *cl, serviceIP, registrySvc, ctrlData); err != nil {
 		return err
 	}
 	return nil

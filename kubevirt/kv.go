@@ -168,8 +168,13 @@ func NewKubevirtCluster(cl *cluster.Cluster, client *k8s.Client) (*KubevirtClust
 	ip := ipnet.To4()
 	ip[3]++
 
+	var ctrlData bool
+	if cl.Ctrldatasubnet != "" {
+		ctrlData = true
+	}
 	for c := 0; c < cl.Controller; c++ {
-		ci, err := cloudinit.CreateCloudInit(fmt.Sprintf("%s-%d", roles.Controller, c), string(pubKey), ip.String(), criomirror, dnsSvcIP, registrySvc, cl.Routes, cl.Distro)
+
+		ci, err := cloudinit.CreateCloudInit(fmt.Sprintf("%s-%d", roles.Controller, c), string(pubKey), ip.String(), criomirror, dnsSvcIP, registrySvc, cl.Routes, cl.Distro, ctrlData)
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +191,7 @@ func NewKubevirtCluster(cl *cluster.Cluster, client *k8s.Client) (*KubevirtClust
 		kvCluster.VirtualMachineInstances = append(kvCluster.VirtualMachineInstances, defineVMI(cl, ci, c, roles.Controller, image))
 	}
 	for c := 0; c < cl.Worker; c++ {
-		ci, err := cloudinit.CreateCloudInit(fmt.Sprintf("%s-%d", roles.Worker, c), string(pubKey), ip.String(), criomirror, dnsSvcIP, registrySvc, cl.Routes, cl.Distro)
+		ci, err := cloudinit.CreateCloudInit(fmt.Sprintf("%s-%d", roles.Worker, c), string(pubKey), ip.String(), criomirror, dnsSvcIP, registrySvc, cl.Routes, cl.Distro, ctrlData)
 		if err != nil {
 			return nil, err
 		}
@@ -206,7 +211,7 @@ func NewKubevirtCluster(cl *cluster.Cluster, client *k8s.Client) (*KubevirtClust
 }
 
 func defineVMI(cl *cluster.Cluster, ci string, idx int, role roles.Role, image string) *kubevirtV1.VirtualMachineInstance {
-	return &kubevirtV1.VirtualMachineInstance{
+	vmi := &kubevirtV1.VirtualMachineInstance{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%d", role, idx),
 			Namespace: cl.Namespace,
@@ -282,5 +287,22 @@ func defineVMI(cl *cluster.Cluster, ci string, idx int, role roles.Role, image s
 			}},
 		},
 	}
+	if cl.Ctrldatasubnet != "" {
+		vmi.Spec.Networks = append(vmi.Spec.Networks, kubevirtV1.Network{
+			Name: cl.Name + "-ctrldata",
+			NetworkSource: kubevirtV1.NetworkSource{
+				Multus: &kubevirtV1.MultusNetwork{
+					NetworkName: fmt.Sprintf("%s/%s", cl.Namespace, cl.Name+"-ctrldata"),
+				},
+			},
+		})
+		vmi.Spec.Domain.Devices.Interfaces = append(vmi.Spec.Domain.Devices.Interfaces, kubevirtV1.Interface{
+			Name: cl.Name + "-ctrldata",
+			InterfaceBindingMethod: kubevirtV1.InterfaceBindingMethod{
+				Bridge: &kubevirtV1.InterfaceBridge{},
+			},
+		})
+	}
+	return vmi
 
 }

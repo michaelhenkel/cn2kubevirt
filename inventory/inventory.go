@@ -55,17 +55,20 @@ type InstanceIPRole struct {
 	Networks []roles.NetworkAnnotation
 }
 
-func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, serviceIP, registry string) error {
+func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, serviceIP, registry string, ctrlData bool) error {
 	var allHosts = make(map[string]Host)
 	var kubeMasterHosts = make(map[string]struct{})
 	var kubeNodeHosts = make(map[string]struct{})
 	var etcdHosts = make(map[string]struct{})
-
+	name := cl.Name
+	if ctrlData {
+		name = cl.Name + "-ctrldata"
+	}
 	for instName, inst := range instanceMap {
 		var ansibleHost string
 		var ip string
 		for _, nw := range inst.Networks {
-			if nw.Name == fmt.Sprintf("%s/%s", cl.Namespace, cl.Name) {
+			if nw.Name == fmt.Sprintf("%s/%s", cl.Namespace, name) {
 				ip = nw.Ips[0]
 			} else {
 				ansibleHost = nw.Ips[0]
