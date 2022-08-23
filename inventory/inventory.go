@@ -55,22 +55,21 @@ type InstanceIPRole struct {
 	Networks []roles.NetworkAnnotation
 }
 
-func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, serviceIP, registry string, ctrlData bool) error {
+func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, serviceIP, registry string) error {
 	var allHosts = make(map[string]Host)
 	var kubeMasterHosts = make(map[string]struct{})
 	var kubeNodeHosts = make(map[string]struct{})
 	var etcdHosts = make(map[string]struct{})
 	name := cl.Name
-	if ctrlData {
-		name = cl.Name + "-ctrldata"
-	}
 	for instName, inst := range instanceMap {
 		var ansibleHost string
 		var ip string
 		for _, nw := range inst.Networks {
-			if nw.Name == fmt.Sprintf("%s/%s", cl.Namespace, name) {
+			switch nw.Name {
+			case fmt.Sprintf("%s/%s", cl.Namespace, name):
 				ip = nw.Ips[0]
-			} else {
+			case fmt.Sprintf("%s/%s-ctrldata", cl.Namespace, name):
+			default:
 				ansibleHost = nw.Ips[0]
 			}
 		}
@@ -166,13 +165,13 @@ func NewInventory(instanceMap map[string]InstanceIPRole, cl cluster.Cluster, ser
 		}
 	*/
 	log.Infof("created kubeconfig file %s/admin.conf", cl.Kubeconfigdir)
-	ipnet, _, err := net.ParseCIDR(cl.Subnet)
+	ipnet, _, err := net.ParseCIDR(cl.Ctrldatasubnet)
 	if err != nil {
 		return err
 	}
 	ip := ipnet.To4()
 	ip[3]++
-	deployer := deployer.NewDeployer(cl.Controller, ip.String(), cl.Podv4subnet, cl.Podv6subnet, cl.Servicev4subnet, cl.Servicev6subnet, registry, cl.Tag, cl.Asn)
+	deployer := deployer.NewDeployer(cl.Controller, ip.String(), cl.Podv4subnet, cl.Podv6subnet, cl.Servicev4subnet, cl.Servicev6subnet, registry, cl.Tag, cl.Ctrldatasubnet, cl.Asn)
 	if err := os.WriteFile(cl.Kubeconfigdir+"/deployer.yaml", []byte(deployer), 0600); err != nil {
 		return err
 	}

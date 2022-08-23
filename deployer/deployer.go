@@ -77,6 +77,18 @@ subjects:
   name: contrail-deploy-serviceaccount
   namespace: contrail-deploy
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: contrail-network-config
+  namespace: contrail
+data:
+  networkConfig: |
+    mode: snat
+    controlDataNetworks:
+    - subnet: SUBNET
+      gateway: GATEWAY
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -191,9 +203,6 @@ data:
       name: contrail-vrouter-masters
       namespace: contrail
     spec:
-      agent:
-        virtualHostInterface:
-          gateway: GATEWAY
       common:
         containers:
         - image: REGISTRY/contrail-vrouter-agent:TAG
@@ -216,9 +225,6 @@ data:
       name: contrail-vrouter-nodes
       namespace: contrail
     spec:
-      agent:
-        virtualHostInterface:
-          gateway: GATEWAY
       common:
         affinity:
           nodeAffinity:
@@ -281,16 +287,17 @@ spec:
           name: contrail-cr
         name: cr-volume`
 
-func NewDeployer(scale int, gateway, podv4subnet, podv6subnet, servicev4subnet, servicev6subnet, registry, tag string, asn int) string {
+func NewDeployer(scale int, gateway, podv4subnet, podv6subnet, servicev4subnet, servicev6subnet, registry, tag, subnet string, asn int) string {
 	if tag == "" {
 		tag = "latest"
 	}
 	template := strings.Replace(deployerTemplate, "GATEWAY", gateway, -1)
+	template = strings.Replace(template, "SUBNET", subnet, -1)
 	template = strings.Replace(template, "PODV4SUBNET", podv4subnet, -1)
 	template = strings.Replace(template, "PODV6SUBNET", podv6subnet, -1)
 	template = strings.Replace(template, "SERVICEV4SUBNET", servicev4subnet, -1)
 	template = strings.Replace(template, "SERVICEV6SUBNET", servicev6subnet, -1)
-	template = strings.Replace(template, "REGISTRY", "svl-artifactory.juniper.net/atom-docker/cn2/bazel-build/dev", -1)
+	template = strings.Replace(template, "REGISTRY", registry, -1)
 	template = strings.Replace(template, "TAG", tag, -1)
 	template = strings.Replace(template, "ASN", strconv.Itoa(asn), -1)
 	return strings.Replace(template, "REPLICAS", strconv.Itoa(scale), -1)

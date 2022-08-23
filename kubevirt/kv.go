@@ -187,7 +187,13 @@ func NewKubevirtCluster(cl *cluster.Cluster, client *k8s.Client) (*KubevirtClust
 			StringData: map[string]string{"userdata": ci},
 		}
 		if _, err := client.K8S.CoreV1().Secrets(cl.Namespace).Create(context.Background(), secret, metav1.CreateOptions{}); err != nil {
-			return nil, err
+			if errors.IsAlreadyExists(err) {
+				if _, err := client.K8S.CoreV1().Secrets(cl.Namespace).Update(context.Background(), secret, metav1.UpdateOptions{}); err != nil {
+					return nil, err
+				}
+			} else {
+				return nil, err
+			}
 		}
 		kvCluster.VirtualMachineInstances = append(kvCluster.VirtualMachineInstances, defineVMI(cl, ci, c, roles.Controller, image))
 	}
@@ -204,7 +210,13 @@ func NewKubevirtCluster(cl *cluster.Cluster, client *k8s.Client) (*KubevirtClust
 			StringData: map[string]string{"userdata": ci},
 		}
 		if _, err := client.K8S.CoreV1().Secrets(cl.Namespace).Create(context.Background(), secret, metav1.CreateOptions{}); err != nil {
-			return nil, err
+			if errors.IsAlreadyExists(err) {
+				if _, err := client.K8S.CoreV1().Secrets(cl.Namespace).Update(context.Background(), secret, metav1.UpdateOptions{}); err != nil {
+					return nil, err
+				}
+			} else {
+				return nil, err
+			}
 		}
 		kvCluster.VirtualMachineInstances = append(kvCluster.VirtualMachineInstances, defineVMI(cl, ci, c, roles.Worker, image))
 	}

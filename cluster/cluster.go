@@ -23,4 +23,5 @@ type Cluster struct {
 	Routes          []string
 	Distro          roles.Distro
 	Tag             string
+	Registry        string
 }
